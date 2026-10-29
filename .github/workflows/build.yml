@@ -1,0 +1,60 @@
+name: Build iOS App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create Base Project Structures
+        run: |
+          mkdir -p NS/Assets.xcassets
+          
+          # Generar archivo de configuración del proyecto mínimo obligatorio
+          cat << 'EOF' > NS/Info.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://apple.com">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>NS</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.jantoniosalgado52.NS</string>
+              <key>CFBundleName</key>
+              <string>NS</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+              <key>UILaunchScreen</key>
+              <dict/>
+              <key>WKRunsIndependentlyOfCompanionApp</key>
+              <false/>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Compile Native Binary
+        run: |
+          # Compilación manual directa usando el compilador de Swift de Apple sin requerir archivo xcodeproj completo
+          xcrun -sdk iphoneos swiftc -O -sdk $(xcrun --sdk iphoneos --show-sdk-path) \
+            NS/ContentView.swift NS/NSApp.swift \
+            -o NS_Binary \
+            -target arm64-apple-ios15.0
+
+      - name: Package App Bundle
+        run: |
+          mkdir -p Payload/NS.app
+          mv NS_Binary Payload/NS.app/NS
+          cp NS/Info.plist Payload/NS.app/Info.plist
+          zip -r NS.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NS-Installer
+          path: NS.ipa
